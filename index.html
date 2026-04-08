@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAKE Studio Pro | Creative Workspace</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        :root {
+            --accent: #6366F1;
+            --accent-hover: #4F46E5;
+            --bg-workspace: #F1F5F9;
+            --bg-sidebar: #FFFFFF;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+            --border-color: #E2E8F0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-workspace);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            /* 모바일에서 당겨서 새로고침 방지 */
+            overscroll-behavior: none;
+        }
+
+        /* --- Sidebar Navigation --- */
+        #sidebar {
+            width: 380px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 500;
+            box-shadow: var(--shadow-md);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 400;
+            background: var(--accent);
+            color: white;
+            border: none;
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                left: 0; top: 0; bottom: 0;
+                width: 85%;
+                max-width: 320px;
+                transform: translateX(-100%);
+            }
+            #sidebar.open { transform: translateX(0); }
+            #sidebar-toggle { display: flex; }
+            #workspace { padding: 10px; padding-top: 80px; }
+            #canvas-wrapper {
+                width: 100% !important;
+                height: 100% !important;
+                aspect-ratio: 4/5;
+            }
+            .floating-hint { display: none; }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 450;
+            }
+            .sidebar-overlay.active { display: block; }
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 8px;
+            gap: 4px;
+            background: #F8FAFC;
+            margin: 16px 20px;
+            border-radius: 10px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 0;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-muted);
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab-content {
+            flex: 1;
+            padding: 0 24px 24px 24px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h3 { font-size: 15px; margin: 24px 0 12px 0; font-weight: 700; color: var(--text-main); }
+        .section-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+
+        /* --- UI Components --- */
+        .grid-colors { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .grid-frames { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .grid-stickers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+
+        .color-circle {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px var(--border-color);
+            transition: transform 0.2s;
+        }
+        .color-circle:hover { transform: scale(1.1); }
+
+        .frame-card {
+            aspect-ratio: 1;
+            background: #F8FAFC;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 12px;
+            transition: all 0.2s;
+        }
+        .frame-card:hover { border-color: var(--accent); background: #EEF2FF; }
+        .frame-card svg { width: 100%; height: 100%; fill: #6366f122; stroke: var(--accent); stroke-width: 2; }
+
+        .sticker-box {
+            font-size: 28px;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .sticker-box:hover { background: #F1F5F9; transform: scale(1.15); }
+
+        .tool-group {
+            background: #F8FAFC;
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
+        .btn-outline { background: white; border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background: #F8FAFC; }
+        .btn-danger { background: #FFF1F2; color: #E11D48; }
+        .btn-danger:hover { background: #FFE4E6; }
+        .btn-success { background: #10B981; color: white; margin-top: 10px; font-size: 16px; padding: 18px; }
+
+        .slider-wrap { margin-bottom: 16px; }
+        .slider-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #E2E8F0;
+            border-radius: 5px;
+            appearance: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; border: 3px solid white; box-shadow: var(--shadow-sm);
+        }
+
+        /* --- Workspace --- */
+        #workspace {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(45deg, #e5e7eb 25%, transparent 25%), 
+                linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #e5e7eb 75%), 
+                linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            width: 900px;
+            height: 700px;
+            max-width: 100%;
+            max-height: 100%;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #element-stage {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+        }
+
+        #ink-layer {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .element {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            transform-origin: center;
+            transition: outline 0.1s;
+            touch-action: none;
+        }
+        .element.selected {
+            outline: 2px solid var(--accent);
+            outline-offset: 4px;
+        }
+
+        .floating-hint {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            gap: 16px;
+            z-index: 100;
+            box-shadow: var(--shadow-lg);
+        }
+        .hint-item { opacity: 0.8; display: flex; align-items: center; gap: 6px; }
+
+        #pen-cursor {
+            width: 20px; height: 20px;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+        }
+
+    </style>
+</head>
+<body>
+
+<button id="sidebar-toggle" onclick="toggleSidebar()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+</button>
+
+<div id="pen-cursor"></div>
+
+<div id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            MAKE STUDIO PRO
+        </div>
+        <button class="btn btn-outline" style="width: auto; padding: 8px; border: none;" onclick="toggleSidebar()" class="mobile-only">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-target="tab-bg">배경</div>
+        <div class="tab" data-target="tab-frame">프레임</div>
+        <div class="tab" data-target="tab-sticker">스티커</div>
+        <div class="tab" data-target="tab-edit">편집</div>
+        <div class="tab" data-target="tab-save">저장</div>
+    </div>
+
+    <!-- Tab: Background -->
+    <div id="tab-bg" class="tab-content active">
+        <h3>컬러 팔레트</h3>
+        <div id="bgColorGrid" class="grid-colors"></div>
+        
+        <h3>그라데이션 테마</h3>
+        <button class="btn btn-outline" onclick="setGrad('#FFE5E5', '#FFFFFF')">🌸 피치 블라썸</button>
+        <button class="btn btn-outline" onclick="setGrad('#E6E6FA', '#B0E0E6')">🌌 오로라 나잇</button>
+        <button class="btn btn-outline" onclick="setGrad('#E8F5E9', '#F1F8E9')">🌿 코지 포레스트</button>
+        <button class="btn btn-outline" onclick="setGrad('#FFF9C4', '#FFFFFF')">🍋 레몬 머랭</button>
+    </div>
+
+    <!-- Tab: Frames -->
+    <div id="tab-frame" class="tab-content">
+        <h3>도형 프레임</h3>
+        <div id="frameGrid" class="grid-frames"></div>
+    </div>
+
+    <!-- Tab: Stickers -->
+    <div id="tab-sticker" class="tab-content">
+        <h3>스티커 세트</h3>
+        <div id="stickerGrid" class="grid-stickers"></div>
+    </div>
+
+    <!-- Tab: Edit -->
+    <div id="tab-edit" class="tab-content">
+        <div class="tool-group" style="margin-top:24px">
+            <span class="section-label">텍스트 엔진</span>
+            <input type="text" id="textInput" placeholder="문구를 입력하세요...">
+            <button class="btn btn-primary" onclick="addText()">캔버스에 추가</button>
+        </div>
+
+        <span class="section-label">트랜스폼</span>
+        <div class="slider-wrap">
+            <div class="slider-header"><span>회전</span><span id="rotVal">0°</span></div>
+            <input type="range" id="rotSlider" min="-180" max="180" value="0">
+        </div>
+        <div class="slider-wrap">
+            <div class="slider-header"><span>투명도</span><span id="opacVal">100%</span></div>
+            <input type="range" id="opacSlider" min="10" max="100" value="100">
+        </div>
+
+        <span class="section-label">필터 및 효과</span>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px">
+            <button class="btn btn-outline" onclick="flipH()">좌우 반전</button>
+            <button class="btn btn-outline" onclick="flipV()">상하 반전</button>
+            <button class="btn btn-outline" onclick="addShadow()">그림자</button>
+            <button class="btn btn-outline" onclick="addBlur()">블러</button>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top:16px" onclick="document.getElementById('fileInput').click()">📷 이미지 불러오기</button>
+        <input type="file" id="fileInput" hidden accept="image/*">
+        <button class="btn btn-danger" style="margin-top:8px" onclick="deleteSelected()">🗑️ 요소 삭제 (Del)</button>
+    </div>
+
+    <!-- Tab: Save -->
+    <div id="tab-save" class="tab-content">
+        <h3>드로잉 도구</h3>
+        <div class="btn btn-outline" style="justify-content: flex-start; gap: 12px; padding: 16px;">
+            <input type="checkbox" id="penActive" style="width:18px; height:18px" onchange="togglePenMode()">
+            <label for="penActive" style="font-weight:700">🖊️ 펜 모드 활성화</label>
+        </div>
+
+        <span class="section-label" style="margin-top:20px">펜 컬러</span>
+        <div id="penColorGrid" class="grid-colors"></div>
+
+        <button class="btn btn-outline" style="margin-top:12px" onclick="clearPen()">🧼 드로잉만 지우기</button>
+        
+        <hr style="margin: 32px 0; border: 0; border-top: 1px solid var(--border-color);">
+        
+        <button class="btn btn-primary btn-success" onclick="saveDesign()">💾 고화질 내보내기</button>
+        <button class="btn btn-outline" style="margin-top:12px" onclick="resetCanvas()">🔄 캔버스 초기화</button>
+    </div>
+</div>
+
+<div id="workspace">
+    <div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+    <div id="canvas-wrapper">
+        <div id="element-stage"></div>
+        <canvas id="ink-layer"></canvas>
+    </div>
+
+    <!-- 모바일/플로팅 삭제 버튼 -->
+    <button id="floatingDelete" onclick="deleteSelected()" style="position:absolute; bottom:24px; right:24px; width:60px; height:60px; border-radius:50%; background:#E11D48; color:white; border:none; box-shadow:var(--shadow-lg); z-index:200; display:none; align-items:center; justify-content:center; font-size:24px; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🗑️</button>
+
+    <div class="floating-hint">
+        <div class="hint-item"><span>🖱️</span> 마우스 휠: 크기 조절</div>
+        <div class="hint-item"><span>👆</span> 클릭: 선택/정렬</div>
+        <div class="hint-item"><span>⌨️</span> Del: 삭제</div>
+    </div>
+</div>
+
+    <script>
+    const wrapper = document.getElementById('canvas-wrapper');
+    const stage = document.getElementById('element-stage');
+    const inkCanvas = document.getElementById('ink-layer');
+    const ctx = inkCanvas.getContext('2d');
+    const rotSlider = document.getElementById('rotSlider');
+    const opacSlider = document.getElementById('opacSlider');
+    const textInput = document.getElementById('textInput');
+    const penActive = document.getElementById('penActive');
+    const penCursor = document.getElementById('pen-cursor');
+
+    let selected = null;
+    let dragging = false;
+    let offset = { x: 0, y: 0 };
+    let penColor = '#000000';
+    let drawing = false;
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function init() {
+        inkCanvas.width = wrapper.offsetWidth;
+        inkCanvas.height = wrapper.offsetHeight;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 4;
+
+        const colors = ["#FFD1DC", "#E0BBE4", "#BEE7E8", "#FFF9B6", "#FFDFD3", "#FFFFFF", "#000000", "#FF7675", "#6C5CE7", "#00B894"];
+        colors.forEach(hex => {
+            const c = document.createElement('div');
+            c.className = 'color-circle';
+            c.style.backgroundColor = hex;
+            c.onclick = () => { wrapper.style.background = hex; if(window.innerWidth <= 768) toggleSidebar(); };
+            document.getElementById('bgColorGrid').appendChild(c);
+
+            const p = document.createElement('div');
+            p.className = 'color-circle';
+            p.style.backgroundColor = hex;
+            p.onclick = () => { penColor = hex; penActive.checked = true; togglePenMode(); if(window.innerWidth <= 768) toggleSidebar(); };
+            document.getElementById('penColorGrid').appendChild(p);
+        });
+
+        const frames = [
+            {n:"네모", p:"M 0,0 H 100 V 100 H 0 Z"}, {n:"동그라미", p:"M 50,0 A 50,50 0 1 1 49.9,0 Z"},
+            {n:"하트", p:"M 50,25 C 50,25 45,0 20,0 C -10,0 0,40 50,85 C 100,40 110,0 80,0 C 55,0 50,25 50,25 Z"},
+            {n:"별", p:"M 50,0 L 61,35 L 98,35 L 68,57 L 79,91 L 50,70 L 21,91 L 32,57 L 2,35 L 39,35 Z"},
+            {n:"구름", p:"M 30,60 A 15,15 0 0 1 30,30 A 25,25 0 0 1 70,30 A 15,15 0 0 1 70,60 Z"}, {n:"육각", p:"M 50,0 L 95,25 L 95,75 L 50,100 L 5,75 L 5,25 Z"},
+            {n:"팔각", p:"M 30,0 L 70,0 L 100,30 L 100,70 L 70,100 L 30,100 L 0,70 L 0,30 Z"}, {n:"다이아", p:"M 50,0 L 100,50 L 50,100 L 0,50 Z"},
+            {n:"삼각", p:"M 50,0 L 100,100 H 0 Z"}, {n:"물방울", p:"M 50,0 C 50,0 100,50 100,70 A 50,30 0 0 1 0,70 C 0,50 50,0 50,0 Z"},
+            {n:"십자가", p:"M 35,0 H 65 V 35 H 100 V 65 H 65 V 100 H 35 V 65 H 0 V 35 H 35 Z"}, {n:"화살표", p:"M 0,35 H 60 V 10 L 100,50 L 60,90 V 65 H 0 Z"},
+            {n:"말풍선", p:"M 10,10 H 90 V 70 H 40 L 10,100 V 70 H 10 Z"}, {n:"티켓", p:"M 0,15 Q 15,15 15,0 H 85 Q 85,15 100,15 V 85 Q 85,85 85,100 H 15 Q 15,85 0,85 Z"},
+            {n:"방패", p:"M 10,0 H 90 V 30 C 90,70 50,100 50,100 C 50,100 10,70 10,30 Z"}, {n:"초승달", p:"M 60,0 A 50,50 0 1 0 100,60 A 40,40 0 0 1 60,0 Z"},
+            {n:"깃발", p:"M 0,0 H 100 V 100 L 50,70 L 0,100 Z"}, {n:"배지", p:"M 50,0 L 65,15 L 85,10 L 90,30 L 100,50 L 90,70 L 85,90 L 65,85 L 50,100 L 35,85 L 15,90 L 10,70 L 0,50 L 10,30 L 15,10 L 35,15 Z"},
+            {n:"사다리꼴", p:"M 20,0 H 80 L 100,100 H 0 Z"}, {n:"꽃잎", p:"M 50,20 C 70,0 100,30 80,50 C 100,70 70,100 50,80 C 30,100 0,70 20,50 C 0,30 30,0 50,20 Z"}
+        ];
+        frames.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'frame-card';
+            card.innerHTML = `<svg viewBox="0 0 100 100"><path d="${f.p}"/></svg>`;
+            card.onclick = () => { addShape(f.p); if(window.innerWidth <= 768) toggleSidebar(); };
+            document.getElementById('frameGrid').appendChild(card);
+        });
+
+        const emos = ["🐹","🐰","🐱","🐻","🐥","🐾","🌸","🌷","🌻","🍄","🍓","🍒","🍋","🍎","🍰","🍭","🍡","🧋","🎀","✨","⭐","🌙","☁️","🎈","🧸","💌","💖","🎶","👑","🫧","🪄","🍀","🎨","🥑","🥞","🍦","🍿","🥨","🍩","🍮","🍯","🥐","🥪","🍙","🍢","🍟","🍔","🍕","🌮","🍱"];
+        emos.forEach(e => {
+            const box = document.createElement('div');
+            box.className = 'sticker-box';
+            box.innerText = e;
+            box.onclick = () => { addSticker(e); if(window.innerWidth <= 768) toggleSidebar(); };
+            document.getElementById('stickerGrid').appendChild(box);
+        });
+
+        document.querySelectorAll('.tab').forEach(t => {
+            t.onclick = () => {
+                document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+                t.classList.add('active');
+                document.getElementById(t.dataset.target).classList.add('active');
+            };
+        });
+
+        document.getElementById('fileInput').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => { addImage(ev.target.result); if(window.innerWidth <= 768) toggleSidebar(); };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        window.onkeydown = (e) => { if(e.key === 'Delete') deleteSelected(); };
+    }
+
+    // --- Unified Event Handling (Mouse & Touch) ---
+    function getCoords(e) {
+        if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        return { x: e.clientX, y: e.clientY };
+    }
+
+    function handleMove(e) {
+        const { x, y } = getCoords(e);
+        
+        if (penActive.checked) {
+            penCursor.style.left = x + 'px';
+            penCursor.style.top = y + 'px';
+        }
+
+        if (dragging && selected) {
+            selected.style.left = (x - offset.x) + 'px';
+            selected.style.top = (y - offset.y) + 'px';
+        }
+
+        if (drawing && penActive.checked) {
+            const rect = inkCanvas.getBoundingClientRect();
+            ctx.lineTo(x - rect.left, y - rect.top);
+            ctx.stroke();
+        }
+    }
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+
+    function handleEnd() {
+        dragging = false;
+        drawing = false;
+    }
+
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+
+    function setupElement(el) {
+        el.style.left = '150px';
+        el.style.top = '150px';
+        el.dataset.rot = 0;
+        el.dataset.s = 1;
+        el.dataset.fx = 1;
+        el.dataset.fy = 1;
+
+        if (el.tagName === 'DIV') el.style.background = 'transparent';
+
+        const onDown = (e) => {
+            if (penActive.checked) return;
+            if (e.type === 'mousedown' && e.button !== 0) return;
+            
+            const { x, y } = getCoords(e);
+            selectElement(el);
+            dragging = true;
+            stage.appendChild(el); 
+            offset = { x: x - el.offsetLeft, y: y - el.offsetTop };
+            
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation();
+        };
+
+        el.addEventListener('mousedown', onDown);
+        el.addEventListener('touchstart', onDown, { passive: false });
+
+        el.oncontextmenu = (e) => {
+            e.preventDefault();
+            el.remove();
+            if (selected === el) {
+                selected = null;
+                document.getElementById('floatingDelete').style.display = 'none';
+            }
+        };
+
+        el.onwheel = (e) => {
+            e.preventDefault();
+            let s = parseFloat(el.dataset.s);
+            s *= (e.deltaY < 0 ? 1.1 : 0.9);
+            el.dataset.s = s;
+            refreshTransform(el);
+        };
+
+        stage.appendChild(el);
+        selectElement(el);
+    }
+
+    function selectElement(el) {
+        if (selected) selected.classList.remove('selected');
+        selected = el;
+        selected.classList.add('selected');
+        
+        // 플로팅 삭제 버튼 표시
+        const fDel = document.getElementById('floatingDelete');
+        if (fDel) fDel.style.display = 'flex';
+
+        // 슬라이더 및 값 동기화
+        rotSlider.value = el.dataset.rot;
+        document.getElementById('rotVal').innerText = el.dataset.rot + '°';
+        opacSlider.value = (el.style.opacity || 1) * 100;
+        document.getElementById('opacVal').innerText = Math.round(opacSlider.value) + '%';
+    }
+
+    function refreshTransform(el) {
+        const { rot, s, fx, fy } = el.dataset;
+        el.style.transform = `rotate(${rot}deg) scale(${s}) scaleX(${fx}) scaleY(${fy})`;
+    }
+
+    function addShape(path) {
+        const div = document.createElement('div');
+        div.className = 'element';
+        div.style.width = '150px';
+        div.style.height = '150px';
+        div.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%; height:100%"><path d="${path}" fill="#6366f122" stroke="#6366F1" stroke-width="3" /></svg>`;
+        setupElement(div);
+    }
+
+    function addSticker(emo) {
+        const div = document.createElement('div');
+        div.className = 'element';
+        div.style.fontSize = '80px';
+        div.innerText = emo;
+        setupElement(div);
+    }
+
+    function addText() {
+        const val = textInput.value.trim();
+        if (!val) return;
+        const div = document.createElement('div');
+        div.className = 'element';
+        div.style.fontSize = '40px';
+        div.style.fontWeight = '800';
+        div.style.color = '#1E293B';
+        div.style.whiteSpace = 'nowrap';
+        div.innerText = val;
+        setupElement(div);
+        textInput.value = '';
+    }
+
+    function addImage(src) {
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = 'element';
+        img.style.width = '200px';
+        img.onload = () => setupElement(img);
+    }
+
+    rotSlider.oninput = () => {
+        if (!selected) return;
+        selected.dataset.rot = rotSlider.value;
+        document.getElementById('rotVal').innerText = rotSlider.value + '°';
+        refreshTransform(selected);
+    };
+
+    opacSlider.oninput = () => {
+        if (!selected) return;
+        selected.style.opacity = opacSlider.value / 100;
+        document.getElementById('opacVal').innerText = opacSlider.value + '%';
+    };
+
+    function flipH() { if(selected) { selected.dataset.fx *= -1; refreshTransform(selected); } }
+    function flipV() { if(selected) { selected.dataset.fy *= -1; refreshTransform(selected); } }
+    function addShadow() { if(selected) selected.style.filter = 'drop-shadow(0 12px 24px rgba(0,0,0,0.3))'; }
+    function addBlur() { if(selected) selected.style.filter = 'blur(6px)'; }
+    function deleteSelected() { 
+        if(selected) { 
+            selected.remove(); 
+            selected = null; 
+            const fDel = document.getElementById('floatingDelete');
+            if (fDel) fDel.style.display = 'none';
+        } 
+    }
+    function setGrad(c1, c2) { wrapper.style.background = `linear-gradient(135deg, ${c1}, ${c2})`; }
+
+    function togglePenMode() {
+        inkCanvas.style.pointerEvents = penActive.checked ? 'auto' : 'none';
+        penCursor.style.display = penActive.checked ? 'block' : 'none';
+        if (penActive.checked && selected) {
+            selected.classList.remove('selected');
+            selected = null;
+        }
+    }
+
+    inkCanvas.onmousedown = (e) => {
+        if (!penActive.checked) return;
+        drawing = true;
+        ctx.beginPath();
+        ctx.strokeStyle = penColor;
+        ctx.moveTo(e.offsetX, e.offsetY);
+    };
+
+    inkCanvas.onmousemove = (e) => {
+        if (drawing && penActive.checked) {
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+    };
+    inkCanvas.onmouseup = () => drawing = false;
+    function clearPen() { ctx.clearRect(0, 0, inkCanvas.width, inkCanvas.height); }
+
+    function resetCanvas() {
+        stage.innerHTML = '';
+        clearPen();
+        wrapper.style.background = 'white';
+        selected = null;
+    }
+
+    async function saveDesign() {
+        const final = document.createElement('canvas');
+        final.width = wrapper.offsetWidth;
+        final.height = wrapper.offsetHeight;
+        const fCtx = final.getContext('2d');
+
+        // 1. 배경 그리기
+        const bg = getComputedStyle(wrapper).background;
+        if (bg.includes('gradient')) {
+            const g = fCtx.createLinearGradient(0,0, final.width, final.height);
+            const cols = bg.match(/rgb\([^)]+\)|#[a-f0-9]+/gi);
+            if(cols && cols.length >= 2) { 
+                g.addColorStop(0, cols[0]); 
+                g.addColorStop(1, cols[cols.length-1]); 
+            }
+            fCtx.fillStyle = g;
+        } else {
+            fCtx.fillStyle = getComputedStyle(wrapper).backgroundColor || 'white';
+        }
+        fCtx.fillRect(0,0, final.width, final.height);
+
+        // 2. 모든 요소(스티커, 도형, 이미지) 그리기
+        const elements = Array.from(stage.children);
+        for (const el of elements) {
+            fCtx.save();
+            
+            // 좌표 및 변형 정보 추출
+            const x = el.offsetLeft + el.offsetWidth / 2;
+            const y = el.offsetTop + el.offsetHeight / 2;
+            const rot = parseFloat(el.dataset.rot || 0) * Math.PI / 180;
+            const s = parseFloat(el.dataset.s || 1);
+            const fx = parseFloat(el.dataset.fx || 1);
+            const fy = parseFloat(el.dataset.fy || 1);
+            const opac = parseFloat(el.style.opacity || 1);
+
+            fCtx.translate(x, y);
+            fCtx.rotate(rot);
+            fCtx.scale(s * fx, s * fy);
+            fCtx.globalAlpha = opac;
+
+            if (el.tagName === 'IMG') {
+                // 이미지 요소
+                fCtx.drawImage(el, -el.offsetWidth/2, -el.offsetHeight/2, el.offsetWidth, el.offsetHeight);
+            } else if (el.innerText && el.innerText.trim()) {
+                // 텍스트/스티커 요소
+                const style = getComputedStyle(el);
+                fCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+                fCtx.fillStyle = style.color;
+                fCtx.textAlign = 'center';
+                fCtx.textBaseline = 'middle';
+                fCtx.fillText(el.innerText, 0, 0);
+            } else if (el.querySelector('svg')) {
+                // 도형(SVG) 요소 - DataURL 변환 후 그리기
+                const svg = el.querySelector('svg');
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(svgBlob);
+                const img = new Image();
+                await new Promise(resolve => {
+                    img.onload = () => {
+                        fCtx.drawImage(img, -el.offsetWidth/2, -el.offsetHeight/2, el.offsetWidth, el.offsetHeight);
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    };
+                    img.src = url;
+                });
+            }
+            fCtx.restore();
+        }
+
+        // 3. 펜 드로잉 레이어 겹치기
+        fCtx.drawImage(inkCanvas, 0, 0);
+
+        // 4. 다운로드
+        const link = document.createElement('a');
+        link.download = `MAKE_Studio_${Date.now()}.png`;
+        link.href = final.toDataURL('image/png');
+        link.click();
+    }
+
+    init();
+</script>
+</body>
+</html>
